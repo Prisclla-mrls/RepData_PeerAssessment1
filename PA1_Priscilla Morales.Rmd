@@ -1,0 +1,115 @@
+---
+title: 'Reproducible Research: Peer Assessment 1'
+output:
+  pdf_document: default
+  html_document:
+    keep_md: yes
+---
+
+
+## Loading and preprocessing the data
+
+```{r}
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip", destfile = "activity.zip", mode="wb")
+unzip("activity.zip")
+ActivityData <- na.omit(read.csv("activity.csv", header = TRUE))
+
+```
+
+## What is mean total number of steps taken per day?
+
+```{r}
+TotalSteps <- aggregate(as.numeric(ActivityData$steps), by = list(as.numeric(ActivityData$date)), FUN = "mean")
+
+hist(TotalSteps$x, col = "purple",
+     breaks = 25,
+     main = "Total Number of Steps per Day",
+     xlab = "Number of Steps",
+     ylab = "Total Number per Day")
+```
+
+## What is the average daily activity pattern?
+```{r}
+
+MeanSteps <- mean(TotalSteps[,2])
+MedianSteps <- median(TotalSteps[,2])
+
+print(MeanSteps)
+print(MedianSteps)
+
+MeanStepsTS <- aggregate(ActivityData$steps, by = list(ActivityData$interval), FUN = "mean")
+#hist(MeanStepsTS$x)
+plot(x = MeanStepsTS$Group.1, y = MeanStepsTS$x, type = "l",
+     main = "Average Number of Steps Taken Each Day",
+     col = "purple",
+     xlab = "Intervals",
+     ylab = "Mean")
+
+#5 The 5-minute interval that, on average, contains the maximum number of steps
+
+MeanStepsTS[which(MeanStepsTS$x== max(MeanStepsTS$x)),]
+```
+
+
+## Imputing missing values
+```{r}
+# 6 Code to describe and show a strategy for imputing missing data
+# 6.1 Calculate the number of NAs
+ActivityDataNAs <- length(which(is.na(read.csv("activity.csv", header = TRUE))))
+ActivityDataNAs
+AllActivityData <- (read.csv("activity.csv"))
+
+# 6.2 Filling Missing Values with Mean 
+
+library(dplyr)
+
+ReplacingValues <- function(x) replace(x, is.na(x), mean(x, na.rm = TRUE))
+MeanActivityDataNAs <- AllActivityData %>% group_by(interval) %>% mutate(steps = ReplacingValues(steps))
+
+
+# 6.3 Create new DataSet with Replacements
+
+SummedActivityData <- aggregate(MeanActivityDataNAs$steps, by=list(MeanActivityDataNAs$date), sum)
+names(SummedActivityData)[1] ="Date"
+head(SummedActivityData)
+
+# 7 Create a Histogram
+
+hist(SummedActivityData$x,
+     breaks = 25,
+     col = "blue",
+     main = "Replaced NAs Total Number of Steps per Day")
+
+# 7.1 Compare Central Metrics
+
+MeanSteps <- mean(TotalSteps[,2])
+MedianSteps <- median(TotalSteps[,2])
+
+MeanSteps1 <- mean(SummedActivityData$x)
+MedianSteps1 <- median(SummedActivityData$x)
+
+MeanSteps
+MeanSteps1
+
+MedianSteps
+MedianSteps1
+
+```
+## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+# 8 Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+ 
+MeanActivityDataNAs$date <- as.Date(MeanActivityDataNAs$date)
+MeanActivityDataNAs$weekday <- weekdays(MeanActivityDataNAs$date)
+MeanActivityDataNAs$weekend <- ifelse(MeanActivityDataNAs$weekday=="Saturday" | MeanActivityDataNAs$weekday=="Sunday", "Weekend", "Weekday" )
+
+
+MeanActivityDataDays <- aggregate(MeanActivityDataNAs$steps , by= list(MeanActivityDataNAs$weekend, MeanActivityDataNAs$interval), na.omit(mean))
+names(MeanActivityDataDays) <- c("weekend", "interval", "steps")
+
+
+library(ggplot2)
+ggplot(MeanActivityDataDays, aes(x=interval, y=steps)) + geom_line()+
+        facet_grid(weekend ~.) + xlab("Interval") + ylab("Mean of Steps") +
+        ggtitle("5-minute interval across weekdays and weekends")
+```
